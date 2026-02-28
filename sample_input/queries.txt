@@ -1,0 +1,22 @@
+### Basic Information
+1. How many products do we have in total?
+2. List all product categories and their descriptions.
+3. What are the names and emails of our top-rated suppliers (rating > 4.5)?
+4. How many customers have joined since the start of 2024?
+
+### Inventory & Stock
+5. Which products are currently out of stock in all warehouses?
+6. What is the total quantity of 'Pro Laptop 15-inch' available across all locations?
+7. Show me the current inventory levels in the 'North Wing' warehouse.
+8. List all warehouses that are at more than 50% capacity.
+
+### Sales & Revenue
+9. What is the total revenue from all 'COMPLETED' sales orders?
+10. Who is our top customer by total spend?
+11. Show me the top 3 best-selling products by quantity sold.
+12. List all sales orders that were 'CANCELLED' and the total amount lost.
+
+### Supplier & Purchasing Insights
+13. Which supplier has the highest total value of purchase orders?
+14. Calculate the average unit price of products for each category.
+15. Find all products supplied by 'TechGlobal Inc.' that have less than 10 units in stock.
