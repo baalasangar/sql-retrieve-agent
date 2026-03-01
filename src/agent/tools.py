@@ -114,7 +114,7 @@ def get_view_schemas() -> str:
     Call this tool FIRST to understand exactly what columns are available
     to SELECT or filter on in the WHERE clause.
     """
-    logger.debug("get_view_schemas() called.")
+    logger.debug("TOOL CALLED: get_view_schemas")
     return """
     Available Views and their schemas:
 
@@ -168,9 +168,12 @@ def query_supplier_purchases_view(select_clause: str, where_clause: str) -> list
                        Example: "supplier_rating > 4.0 GROUP BY supplier_name"
                        Pass an empty string or "1=1" to return all rows.
     """
+    logger.debug("TOOL CALLED: query_supplier_purchases_view called with select_clause=%r, where_clause=%r",
+                 select_clause, where_clause)
     where = f"WHERE {where_clause}" if where_clause and where_clause.strip() not in ("", "1=1") else ""
     query = f"SELECT {select_clause} FROM v_supplier_purchases {where}".strip()
     logger.debug("query_supplier_purchases_view → %s", query)
+    logger.debug("TOOL COMPLETED: query_supplier_purchases_view")
     return _execute_readonly_query(query)
 
 
@@ -185,9 +188,12 @@ def query_customer_sales_view(select_clause: str, where_clause: str) -> list[dic
                        Example: "order_status = 'COMPLETED'"
                        Pass an empty string or "1=1" to return all rows.
     """
+    logger.debug("TOOL CALLED: query_customer_sales_view called with select_clause=%r, where_clause=%r",
+                 select_clause, where_clause)
     where = f"WHERE {where_clause}" if where_clause and where_clause.strip() not in ("", "1=1") else ""
     query = f"SELECT {select_clause} FROM v_customer_sales {where}".strip()
     logger.debug("query_customer_sales_view → %s", query)
+    logger.debug("TOOL COMPLETED: query_customer_sales_view")
     return _execute_readonly_query(query)
 
 
@@ -202,7 +208,10 @@ def query_inventory_status_view(select_clause: str, where_clause: str) -> list[d
                        Example: "quantity_on_hand < 10"
                        Pass an empty string or "1=1" to return all rows.
     """
+    logger.debug("TOOL CALLED: query_inventory_status_view called with select_clause=%r, where_clause=%r",
+                 select_clause, where_clause)
     where = f"WHERE {where_clause}" if where_clause and where_clause.strip() not in ("", "1=1") else ""
     query = f"SELECT {select_clause} FROM v_inventory_status {where}".strip()
     logger.debug("query_inventory_status_view → %s", query)
+    logger.debug("TOOL COMPLETED: query_inventory_status_view")
     return _execute_readonly_query(query)

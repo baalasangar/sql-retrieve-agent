@@ -68,6 +68,17 @@ def create_agent():
     You are an expert Data Retrieval Agent for a company's ERP database.
     Your goal is to answer user queries accurately by pulling data from the database.
 
+    PLANNING REQUIREMENT (MANDATORY):
+    Before doing ANYTHING else, you MUST start your response with a planning block
+    in this EXACT format — never skip or abbreviate it:
+
+    PLAN:
+    1. <first step you will take>
+    2. <second step>
+    3. <and so on…>
+
+    Only after outputting the full PLAN block should you proceed to call tools.
+
     CRITICAL INSTRUCTIONS:
     1. NEVER GUESS column names. Your FIRST STEP should ALWAYS be to call `get_view_schemas()`
        to see the exact column names available in the 3 semantic views.
@@ -138,6 +149,94 @@ def create_agent():
 
 # ── Chat loop ─────────────────────────────────────────────────────────────────
 
+def _stream_response(chat, user_input: str) -> None:
+    """Send *user_input* via the streaming API and display:
+
+    1. The ``PLAN:`` block that Gemini emits before any tool calls.
+    2. A progress line for every tool call (⏳ started / ✅ done).
+    3. The final natural-language answer.
+    """
+    plan_printed = False      # have we shown the 📋 Plan header yet?
+    plan_buf: list[str] = []  # accumulate plan text across chunks
+    in_plan = False           # are we currently inside the PLAN block?
+    answer_buf: list[str] = []# accumulate post-tool text for the final answer
+    step_counter = 0          # tracks how many tool calls we have seen
+
+    for chunk in chat.send_message_stream(user_input):
+        # ── Inspect every part in this chunk ────────────────────────────────
+        parts = []
+        try:
+            parts = chunk.candidates[0].content.parts or []
+        except (AttributeError, IndexError):
+            pass
+
+        for part in parts:
+            # ── Tool call starting ───────────────────────────────────────────
+            if hasattr(part, "function_call") and part.function_call:
+                tool_name = part.function_call.name
+                step_counter += 1
+                # Flush any remaining plan text before we start executing
+                if plan_buf and not plan_printed:
+                    _flush_plan(plan_buf)
+                    plan_printed = True
+                    plan_buf.clear()
+                print(f"\n  ⏳ Step {step_counter} — {tool_name}…")
+                logger.debug("Tool call started: %s", tool_name)
+
+            # ── Tool response received ───────────────────────────────────────
+            elif hasattr(part, "function_response") and part.function_response:
+                tool_name = part.function_response.name
+                print(f"  ✅ Step {step_counter} done — {tool_name}")
+                logger.debug("Tool call finished: %s", tool_name)
+
+            # ── Text chunk ──────────────────────────────────────────────────
+            elif hasattr(part, "text") and part.text:
+                text = part.text
+                if step_counter == 0:
+                    # We haven't called any tools yet — this must be the plan.
+                    plan_buf.append(text)
+                    # Try to detect the PLAN: marker and set the flag.
+                    combined = "".join(plan_buf)
+                    if "PLAN:" in combined.upper():
+                        in_plan = True
+                else:
+                    # Post-tool text — part of the final answer.
+                    answer_buf.append(text)
+
+        # ── Chunk-level text (some SDK versions surface it here) ─────────────
+        if hasattr(chunk, "text") and chunk.text and step_counter == 0 and not parts:
+            plan_buf.append(chunk.text)
+
+    # ── End of stream ────────────────────────────────────────────────────────
+    # Flush plan if it hasn't been printed yet (e.g. no tool calls at all)
+    if plan_buf and not plan_printed:
+        _flush_plan(plan_buf)
+
+    # Print the final answer
+    final_answer = "".join(answer_buf).strip()
+    if final_answer:
+        print("\n🤖 Agent Response:")
+        print(final_answer)
+    elif step_counter == 0:
+        # No tools and no separate answer — the entire response was the plan;
+        # the agent may have answered directly in the plan text.
+        pass  # already printed by _flush_plan
+
+    logger.debug("Streaming complete. Tool calls: %d", step_counter)
+
+
+def _flush_plan(plan_buf: list[str]) -> None:
+    """Pretty-print the accumulated PLAN block."""
+    raw = "".join(plan_buf).strip()
+    print("\n📋 Plan:")
+    # Print each line, indenting numbered steps for readability.
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if stripped:
+            print(f"  {stripped}")
+    print("\n⏳ Executing…")
+
+
 def chat_loop():
     """Runs the interactive CLI loop."""
     print("=" * 50)
@@ -188,14 +287,8 @@ def chat_loop():
                 logger.debug("Empty input received — skipping.")
                 continue
 
-            logger.debug("Sending user query to Gemini: %r", user_input)
-            print("\nAgent is thinking and querying tools…")
-
-            response = chat.send_message(user_input)
-
-            logger.debug("Raw response text: %r", response.text)
-            print("\nAgent Response:")
-            print(response.text)
+            logger.debug("Sending user query to Gemini (streaming): %r", user_input)
+            _stream_response(chat, user_input)
 
         except KeyboardInterrupt:
             print("\nExiting…")
